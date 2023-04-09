@@ -3,6 +3,7 @@
 ## Features
 
 - Chrome extension that generates CloudWatch Logs Insights queries from ChatGPT prompts
+- Simply start typing inside double quotes (") and you'll see a 'Convert to query' button.
 
 ![Demo](./images/demo.gif)
 
