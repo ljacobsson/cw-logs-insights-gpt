@@ -4,6 +4,8 @@
 
 - Chrome extension that generates CloudWatch Logs Insights queries from ChatGPT prompts
 
+![Demo](./images/demo.gif)
+
 ## Install
 * Go to [OpenAI](https://platform.openai.com/account/api-keys) and create an API key
 * Clone this repo
