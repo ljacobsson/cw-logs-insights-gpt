@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Cw Logs Gpt",
+  "name": "CloudWatch Logs Gpt",
   "version": "0.1.0",
   "description": "My Chrome Extension",
   "icons": {
@@ -22,7 +22,7 @@
   "content_scripts": [
     {
       "matches": [
-        "<all_urls>"
+        "https://*.console.aws.amazon.com/cloudwatch/home*"
       ],
       "run_at": "document_idle",
       "js": [

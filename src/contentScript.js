@@ -1,43 +1,110 @@
 'use strict';
 
-// Content script file will run in the context of web page.
-// With content script you can manipulate the web pages using
-// Document Object Model (DOM).
-// You can also pass information to the parent extension.
+const monaco = require('monaco-editor')
+let editor;
+const interval = setInterval(() => {
+  const iframe = document.getElementById('microConsole-Logs');
+  if (iframe) {
+    clearInterval(interval);
 
-// We execute this script by making an entry in manifest.json file
-// under `content_scripts` property
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+          for (const node of mutation.addedNodes) {
+            if (!node.parentElement) {
+              continue;
+            }
+            let textContent = node.parentElement.textContent;
+            if (!node.classList || !node.classList.contains('view-line')) {
+              continue;
+            }
+            if (textContent.startsWith('"')) {
+              if (iframe.contentWindow.document.getElementsByClassName('submit-button-clone').length > 0) {
+                continue;
+              }
 
-// For more information on Content Scripts,
-// See https://developer.chrome.com/extensions/content_scripts
+              //find element by innerText
+              let submitButton = iframe.contentWindow.document.evaluate('//span[text()="Run query"]', iframe.contentWindow.document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+              submitButton = getNodeParent(submitButton, 3);
+              const clone = submitButton.cloneNode(true);
+              clone.firstChild.firstChild.innerText = "Convert to query"
+              clone.addEventListener('click', () => {
+                const editor = iframe.contentWindow.document.getElementsByClassName('view-lines')[0];
+                const query = editor.innerText;
 
-// Log `title` of current active web page
-const pageTitle = document.head.getElementsByTagName('title')[0].innerHTML;
-console.log(
-  `Page title is: '${pageTitle}' - evaluated by Chrome extension's 'contentScript.js' file`
-);
+                const logGroupMatch = location.href.match(/~source~\((.+?)\)/);
+                let service;
+                if (logGroupMatch.length > 1) {
+                  const logGroups = logGroupMatch[1].split("~'").map((logGroup) => {
+                    return logGroup.replace(/\*([0-9a-f]{2})/g, (match, p1) => String.fromCharCode(parseInt(p1, 16)));
+                  });
+                  const awsLogGroup = logGroups.find((logGroup) => logGroup.startsWith('/aws/'));
+                  if (awsLogGroup) {
+                    service = awsLogGroup.split('/')[2];
+                  } else {
+                    console.log("No AWS log group found");
+                  }
+                }
 
-// Communicate with background file by sending a message
-chrome.runtime.sendMessage(
-  {
-    type: 'GREETINGS',
-    payload: {
-      message: 'Hello, my name is Con. I am from ContentScript.',
-    },
-  },
-  (response) => {
-    console.log(response.message);
+                chrome.runtime.sendMessage(
+                  {
+                    type: 'QUERY',
+                    payload: {
+                      query: editor.innerText + (service ? ` in the context of ${service}` : ''),
+                    },
+                  },
+                  (response) => {
+                    if (response.message.includes('```')) {
+                      response.message = response.message.split('```')[1].replace(/\n/, '');
+                    }
+
+                    const encoded = response.message.replace(/[^a-zA-Z0-9\|]/g, c => {
+                      const char = c.charCodeAt(0).toString(16);
+                      if (char.length === 1)
+                        return `*0${char}`;
+                      return `*${char}`;
+                    });
+                    console.log(encoded);
+                    let url = location.href;
+                    url = url.replace(/editorString~'(.+?)~/, `editorString~'${encoded}~`);
+                    location.href = url;
+                    setTimeout(() => {
+                      if (editor.innerText === query) {
+                        location.reload();
+                      }
+                    }, 500);
+                  }
+                );
+              });
+              clone.classList.add('submit-button-clone');
+              submitButton.parentNode.insertBefore(clone, submitButton.nextSibling);
+            } else {
+              const clone = iframe.contentWindow.document.getElementsByClassName('submit-button-clone')[0];
+              if (clone) {
+                clone.remove();
+              }
+            }
+          }
+        }
+      }
+    });
+    const iframeInterval = setInterval(() => {
+      if (iframe.contentWindow) {
+        clearInterval(iframeInterval);
+        observer.observe(iframe.contentWindow.document.body, {
+          attributes: true,
+          childList: true,
+          subtree: true,
+        });
+      }
+    }, 1000);
+
   }
-);
+}, 1000);
 
-// Listen for message
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.type === 'COUNT') {
-    console.log(`Current count is ${request.payload.count}`);
+function getNodeParent(node, level) {
+  if (level === 0) {
+    return node;
   }
-
-  // Send an empty response
-  // See https://github.com/mozilla/webextension-polyfill/issues/130#issuecomment-531531890
-  sendResponse({});
-  return true;
-});
+  return getNodeParent(node.parentElement, level - 1);
+}

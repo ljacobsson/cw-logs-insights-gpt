@@ -1,21 +1,36 @@
 'use strict';
-
-// With background scripts you can communicate with popup
-// and contentScript files.
-// For more information on background script,
-// See https://developer.chrome.com/extensions/background_pages
+const { Configuration, OpenAIApi } = require("openai");
+const { apiKey } = require("./apiKey");
+const axios = require("axios").default;
+const fetchAdapter = require("@vespaiach/axios-fetch-adapter").default;
+require("regenerator-runtime/runtime");
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.type === 'GREETINGS') {
-    const message = `Hi ${
-      sender.tab ? 'Con' : 'Pop'
-    }, my name is Bac. I am from Background. It's great to hear from you.`;
+  if (request.type === 'QUERY') {
+    console.log("q", request.payload.query);
+    const configuration = new Configuration({
+      apiKey: apiKey, 
+    });
+    const instance = axios.create({
+      adapter: fetchAdapter
+    });
+    const openai = new OpenAIApi(configuration, undefined, instance);
+    const prompt = `Translate this to CloudWatch Logs Insights query language: ${request.payload.query}`;
 
-    // Log message coming from the `request` parameter
-    console.log(request.payload.message);
-    // Send a response message
-    sendResponse({
-      message,
+    const openAiRequest = {
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "user",
+          content: `Translate this to CloudWatch Logs Insights query language: ${request.payload.query}. Respond with only the query.`,
+        }
+      ], 
+      temperature: 0.5,
+      max_tokens: 1000
+    };
+    openai.createChatCompletion(openAiRequest).then((data) => {
+      sendResponse({ message: data.data.choices[0].message.content, prompt });
     });
   }
+  return true;
 });
