@@ -1,19 +1,21 @@
-# <img src="public/icons/icon_48.png" width="45" align="left"> Cw Logs Gpt
-
-My Chrome Extension
+# CloudWatch Logs Insights ChatGPT 
 
 ## Features
 
-- Feature 1
-- Feature 2
+- Chrome extension that generates CloudWatch Logs Insights queries from ChatGPT prompts
 
 ## Install
-
-[**Chrome** extension]() <!-- TODO: Add chrome extension link inside parenthesis -->
-
-## Contribution
-
-Suggestions and pull requests are welcomed!.
+* Go to [OpenAI](https://platform.openai.com/account/api-keys) and create an API key
+* Clone this repo
+* Create file `src/apiKey.js` with the following content
+```
+  export const apiKey = '<your openai api key>';
+```
+* run `npm install && npm run build`
+* Open chrome://extensions
+* Enable the "Developer mode" toggle 
+* Click on the "Load unpacked" button
+* Select the folder <project_root>/build
 
 ---
 
